@@ -1,64 +1,33 @@
 #include <stdio.h>
 
-#pragma warning(push, 0)
+#pragma warning(push, 3)
 #include <windows.h>
 #pragma warning(pop)
 
+#include "Main.h"
 
-LRESULT CALLBACK MainWndowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+#define GAME_NAME "Sky Merchant"
+
 
 int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance,
     PSTR CommandLine, int CmdShow)
 {
-    //UNREFERENCED_PARAMETER(Instance);
     UNREFERENCED_PARAMETER(PreviousInstance);
     UNREFERENCED_PARAMETER(CommandLine);
     UNREFERENCED_PARAMETER(CmdShow);
 
-
-    WNDCLASSEXA WindowClass = { 0 };
-    HWND WindowHandle;
-    //MSG Msg;
-
-    WindowClass.cbSize = sizeof(WNDCLASSEXA);
-    WindowClass.style = 0;
-    WindowClass.lpfnWndProc = MainWndowProc;
-    WindowClass.cbClsExtra = 0;
-    WindowClass.cbWndExtra = 0;
-    WindowClass.hInstance = Instance;
-    WindowClass.hIcon = LoadIconA(NULL, IDI_APPLICATION);
-    WindowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
-    WindowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    WindowClass.lpszMenuName = NULL;
-    WindowClass.lpszClassName = "GAME_WINDOWCLASS";
-    WindowClass.hIconSm = LoadIconA(NULL, IDI_APPLICATION);
-
-    if (RegisterClassExA(&WindowClass) == 0)
+    if (GameIsAlreadyRunning() == TRUE)
     {
-        MessageBox(NULL, "Window Registration Failed!", "Error!",
+        MessageBoxA(NULL, "Another game instance is running!", "Error!",
             MB_ICONEXCLAMATION | MB_OK);
-        return 0;
+
+        goto Exit;
     }
 
-
-
-    WindowHandle = CreateWindowExA(
-        WS_EX_CLIENTEDGE,
-        WindowClass.lpszClassName,
-        "Sky Merchant",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 240, 120,
-        NULL, NULL, Instance, NULL);
-
-    if (WindowHandle == NULL)
+    if (CreateMainGameWindow() != ERROR_SUCCESS)
     {
-        MessageBox(NULL, "Window Creation Failed!", "Error!",
-            MB_ICONEXCLAMATION | MB_OK);
-        return 0;
+        goto Exit;
     }
-
-
-    ShowWindow(WindowHandle, TRUE);
 
 
     MSG Message = { 0 };
@@ -69,41 +38,100 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance,
 
         DispatchMessageA(&Message);
     }
-
+    
+Exit:
     return 0;
 }
 
 LRESULT CALLBACK MainWndowProc(
-    HWND hwnd,        // handle to window
-    UINT uMsg,        // message identifier
-    WPARAM wParam,    // first message parameter
-    LPARAM lParam)    // second message parameter
+    _In_ HWND WindowHandle,        // handle to window
+    _In_ UINT Message,        // message identifier
+    _In_ WPARAM WParam,    // first message parameter
+    _In_ LPARAM LParam)    // second message parameter
 {
+    LRESULT Result = 0;
 
-    switch (uMsg)
+    switch (Message)
     {
-    case WM_CREATE:
-        // Initialize the window. 
-        return 0;
-
-    case WM_PAINT:
-        // Paint the window's client area. 
-        return 0;
-
-    case WM_SIZE:
-        // Set the size and position of the window. 
-        return 0;
-
-    case WM_DESTROY:
-        // Clean up window-specific data objects. 
-        return 0;
-
-        // 
-        // Process other messages. 
-        // 
-
-    default:
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        case WM_CLOSE:
+        {
+            PostQuitMessage(0);
+            break;
+        }
+        default:
+        {
+            Result = DefWindowProcA(WindowHandle, Message, WParam, LParam);
+        }
     }
-    return 0;
+
+    return Result;
+}
+
+DWORD CreateMainGameWindow(void)
+{
+    DWORD Result = ERROR_SUCCESS;
+
+    WNDCLASSEXA WindowClass = { 0 };
+    HWND WindowHandle;
+
+    WindowClass.cbSize = sizeof(WNDCLASSEXA);
+    WindowClass.style = 0;
+    WindowClass.lpfnWndProc = MainWndowProc;
+    WindowClass.cbClsExtra = 0;
+    WindowClass.cbWndExtra = 0;
+    WindowClass.hInstance = GetModuleHandleA(NULL);   //WindowClass.hInstance = Instance;
+    WindowClass.hIcon = LoadIconA(NULL, IDI_APPLICATION);
+    WindowClass.hIconSm = LoadIconA(NULL, IDI_APPLICATION);
+    WindowClass.hCursor = LoadCursorA(NULL, IDC_ARROW);
+    WindowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    WindowClass.lpszMenuName = NULL;
+    WindowClass.lpszClassName = GAME_NAME "GAME_WINDOWCLASS";
+
+    if (RegisterClassExA(&WindowClass) == 0)
+    {
+        Result = GetLastError();
+
+        MessageBoxA(NULL, "Window Registration Failed!", "Error!",
+            MB_ICONEXCLAMATION | MB_OK);
+
+        goto Exit;
+    }
+
+
+
+    WindowHandle = CreateWindowExA(
+        WS_EX_CLIENTEDGE,
+        WindowClass.lpszClassName,
+        GAME_NAME,
+        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        CW_USEDEFAULT, CW_USEDEFAULT, 240, 120,
+        NULL, NULL, GetModuleHandleA(NULL), NULL);
+
+    if (WindowHandle == NULL)
+    {
+        Result = GetLastError();
+
+        MessageBox(NULL, "Window Creation Failed!", "Error!",
+            MB_ICONEXCLAMATION | MB_OK);
+
+        goto Exit;
+    }
+    
+Exit:
+    return Result;
+}
+
+BOOL GameIsAlreadyRunning(void)
+{
+    HANDLE Mutex = NULL;
+    Mutex = CreateMutexA(NULL, FALSE, GAME_NAME "_GameMutex");
+
+    if (GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
 }
