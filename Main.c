@@ -8,6 +8,8 @@
 
 #define GAME_NAME "Sky Merchant"
 
+HANDLE gGameWindow;
+BOOL gGameIsRunning;
 
 int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance,
     PSTR CommandLine, int CmdShow)
@@ -32,12 +34,24 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance,
 
     MSG Message = { 0 };
 
-    while (GetMessageA(&Message, NULL, 0, 0) > 0)
-    {
-        TranslateMessage(&Message);
+    gGameIsRunning = TRUE;
 
-        DispatchMessageA(&Message);
+    while (gGameIsRunning)
+    {
+        /*while (GetMessageA(&Message, NULL, 0, 0) > 0)
+        {
+            TranslateMessage(&Message);
+
+            DispatchMessageA(&Message);
+        }*/
+
+        while (PeekMessageA(&Message, gGameWindow, 0, 0, PM_REMOVE))
+        {
+            DispatchMessageA(&Message);
+        }
     }
+
+    
     
 Exit:
     return 0;
@@ -55,6 +69,8 @@ LRESULT CALLBACK MainWndowProc(
     {
         case WM_CLOSE:
         {
+            gGameIsRunning = FALSE;
+
             PostQuitMessage(0);
             break;
         }
@@ -72,7 +88,6 @@ DWORD CreateMainGameWindow(void)
     DWORD Result = ERROR_SUCCESS;
 
     WNDCLASSEXA WindowClass = { 0 };
-    HWND WindowHandle;
 
     WindowClass.cbSize = sizeof(WNDCLASSEXA);
     WindowClass.style = 0;
@@ -99,7 +114,7 @@ DWORD CreateMainGameWindow(void)
 
 
 
-    WindowHandle = CreateWindowExA(
+    gGameWindow = CreateWindowExA(
         WS_EX_CLIENTEDGE,
         WindowClass.lpszClassName,
         GAME_NAME,
@@ -107,7 +122,7 @@ DWORD CreateMainGameWindow(void)
         CW_USEDEFAULT, CW_USEDEFAULT, 240, 120,
         NULL, NULL, GetModuleHandleA(NULL), NULL);
 
-    if (WindowHandle == NULL)
+    if (gGameWindow == NULL)
     {
         Result = GetLastError();
 
